@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Title</title>
+</head>
+<body>
+<pre>Kết nối socket đến http://{domain-name}/?uid={user_id}
+Listen/emit event:
+ - makeCall: (receiver, cb): Gửi tín hiệu bắt đầu cuộc gọi đến user {receiver}
+ - makeCallAck: (receiver, callAccepted, cb): Gửi tín hiệu trả lời có chấp nhận cuộc gọi hay không đến user {receiver}
+ - cancelCall: (receiver, cb): Gửi tín hiệu huỷ việc gọi điện (từ phía người gọi điện, khi cuộc gọi chưa được bắt đầu).
+ - endCall: gửi tín hiệu kết thúc cuộc gọi (từ một trong hai phía).
+</pre>
+<p><a href="/caller.html" target="_blank">Caller</a></p>
+</body>
+</html>

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Title</title>
+  <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"
+          integrity="sha384-c79GN5VsunZvi+Q/WObgk2in0CbZsHnjEqvFxC5DxHn9lTfNce2WW6h2pH6u/kF+"
+          crossorigin="anonymous"></script>
+</head>
+<body>
+<div>
+  <p>Log</p>
+  <textarea id="log" cols="45" rows="10"></textarea>
+</div>
+<br/>
+<p>Call</p>
+<div>
+  <input id="receiver" placeholder="target user id"/>
+  <button onclick="makeCall()">Call</button>
+  <button onclick="cancelCall()">Cancel call</button>
+  <button onclick="endCall()">End call</button>
+</div>
+<dialog id="dlg">
+  <p id="dlg_msg">{{msg}}</p>
+  <div>
+    <button onclick="answer(true)">
+      Accept
+    </button>
+    <button onclick="answer(false)">
+      Reject
+    </button>
+  </div>
+</dialog>
+<script>
+  const STATUS = {
+    idle: 1,
+    requesting: 2,
+    onCall: 3,
+  }
+
+  let socket;
+  let status;
+  
+  function dlgMgrFac(id) {
+    const el = document.getElementById(id);
+    const elMsg = document.getElementById(`${id}_msg`);
+    return {
+      showDlg(msg) {
+        elMsg.innerText = msg;
+        el.showModal()
+      },
+      close() {
+        el.close()
+      }
+    }
+  }
+  
+  let dlgMgr;
+  window.onload = () => {
+    connect();
+    dlgMgr = dlgMgrFac('dlg');
+  }
+  
+  function val(id, val) {
+    if (val === undefined)
+      return document.getElementById(id).value;
+    else
+      document.getElementById(id).value = val
+  }
+  
+  function rand() {
+    return 100 + Math.floor(Math.random() * 1000)
+  }
+  
+  function updateLog(val) {
+    document.getElementById('log').value += `${val}\n`;
+  }
+
+  const incomingCall = {sender: null}
+  
+  function answer(accept) {
+    updateLog(`Ack: ${accept ? 'accept': 'reject'} call from ${incomingCall.sender}`)
+    socket.emit('makeCallAck', incomingCall.sender, accept, () => updateLog(`makeCallAck succeeded`))
+    dlgMgr.close()
+  }
+  
+  function connect() {
+    const id = rand()
+    document.title = `User ${id}`
+    updateLog(`Connect to the server with id ${id}`)
+    socket = io(`/?uid=${id}`);
+    socket.on('__TEST__', () => updateLog(`connected`))
+    socket.on('makeCall', ({sender}) => {
+      incomingCall.sender = sender
+      dlgMgr.showDlg(`${sender} want to call you`)
+    })
+    socket.on('makeCallAck', ({sender, callAccepted}, cb) => {
+      updateLog(`${sender} ${callAccepted ? 'accept' : 'reject' } call request`)
+    })
+    socket.on('cancelCall', ({sender}) => {
+      updateLog(`${sender} cancel call`)
+      dlgMgr.close()
+    })
+    socket.on('endCall', ({sender}) => {
+      updateLog(`${sender} end call`)
+      dlgMgr.close()
+    })
+  }
+
+  function makeCall() {
+    status = STATUS.requesting;
+    socket.emit('makeCall', val('receiver'), (error) => {
+      if (error) {
+        updateLog(error)
+        status = STATUS.idle;
+      } else {
+        updateLog('call request sent, waiting for answer')
+      }
+    })
+  }
+
+  function cancelCall() {
+    status = STATUS.idle;
+    socket.emit('cancelCall', val('receiver'), (error) => {
+      if (error) {
+        updateLog(error)
+      } else {
+        updateLog('cancel call request sent')
+      }
+    })
+  }
+
+  function endCall() {
+    status = STATUS.idle;
+    socket.emit('endCall', val('receiver'), (error) => {
+      if (error) {
+        updateLog(error)
+      } else {
+        updateLog('end call request send')
+      }
+    })
+  }
+</script>
+</body>
+</html>
