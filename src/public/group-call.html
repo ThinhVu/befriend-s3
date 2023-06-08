@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Title</title>
+  <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"
+          integrity="sha384-c79GN5VsunZvi+Q/WObgk2in0CbZsHnjEqvFxC5DxHn9lTfNce2WW6h2pH6u/kF+"
+          crossorigin="anonymous"></script>
+</head>
+<body>
+<div>
+  <p>Log</p>
+  <textarea id="log" cols="45" rows="10"></textarea>
+</div>
+<br/>
+<p>Call</p>
+<div>
+  <button onclick="makeCall()">Make Call</button>
+  <button onclick="joinCall()">Join Call</button>
+  <button onclick="leaveCall()">Leave call</button>
+</div>
+<dialog id="dlg">
+  <p id="dlg_msg">{{msg}}</p>
+  <div>
+    <button onclick="answer(true)">
+      Accept
+    </button>
+    <button onclick="answer(false)">
+      Reject
+    </button>
+  </div>
+</dialog>
+<script>
+  let socket;
+
+  function dlgMgrFac(id) {
+    const el = document.getElementById(id);
+    const elMsg = document.getElementById(`${id}_msg`);
+    return {
+      showDlg(msg) {
+        elMsg.innerText = msg;
+        el.showModal()
+      },
+      close() {
+        el.close()
+      }
+    }
+  }
+
+  let dlgMgr;
+  window.onload = () => {
+    connect();
+    dlgMgr = dlgMgrFac('dlg');
+  }
+
+  function val(id, val) {
+    if (val === undefined)
+      return document.getElementById(id).value;
+    else
+      document.getElementById(id).value = val
+  }
+
+  function rand() {
+    return 100 + Math.floor(Math.random() * 1000)
+  }
+
+  function updateLog(val) {
+    document.getElementById('log').value += `${val}\n`;
+  }
+
+  const incomingCall = {sender: null}
+  let callSession = null
+
+  function answer(accept) {
+    if (accept) {
+      updateLog(`You ${accept ? 'accept': 'reject'} call ${callSession} from ${incomingCall.sender}`)
+      joinCall()
+    } else {
+      updateLog(`You ${accept ? 'accept': 'reject'} call ${callSession} from ${incomingCall.sender}`)
+    }
+    
+    dlgMgr.close()
+  }
+
+  function connect() {
+    const id = 'USER_' + rand()
+    document.title = `User ${id}`
+    updateLog(`Connect to the server with id ${id}`)
+    socket = io(`/?uid=${id}`);
+    socket.on('__TEST__', () => updateLog(`connected`))
+    
+    socket.on('group:makeCall', ({sender, sessionId}) => {
+      if (sender === id) return
+      incomingCall.sender = sender
+      callSession = sessionId
+      dlgMgr.showDlg(`${sender} want to group call at session ${callSession}`)
+    })
+    
+    socket.on('group:joinCall', ({sender, sessionId}) => {
+      if (sender === id) return
+      updateLog(`${sender} join call ${sessionId}`)
+    })
+    
+    socket.on('group:leaveCall', ({sender, sessionId, remainMembers}) => {
+      if (sender === id) return
+      updateLog(`${sender} leave call ${sessionId}. There are only ${remainMembers} member in this call`)
+      if (remainMembers === 1) {
+        updateLog(`Only you in this session, end call will save you money`)
+      }
+    })
+  }
+
+  function makeCall() {
+    socket.emit('group:makeCall', (sessionId) => {
+      updateLog(`new session created ${sessionId}`)
+      callSession = sessionId
+    })
+  }
+
+  function joinCall() {
+    if (!callSession) {
+      updateLog(`Error: no active session!`)
+      return
+    }
+    socket.emit('group:joinCall', callSession, (shouldJoinVoIP) => {
+      updateLog(`join call request sent, shouldJoinVoIP? ${shouldJoinVoIP}`)
+    })
+  }
+
+  function leaveCall() {
+    if (!callSession) {
+      updateLog(`Error: no active session!`)
+      return
+    }
+    socket.emit('group:leaveCall', callSession, () => {
+      updateLog('you leave the call')
+      callSession = null
+    })
+  }
+</script>
+</body>
+</html>
