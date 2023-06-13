@@ -13,8 +13,17 @@
   <textarea id="log" cols="45" rows="10"></textarea>
 </div>
 <br/>
+<div>
+<p>Group</p>
+  <div>
+    <input id="groupId">
+    <button onclick="joinGroup()">Join Group</button>
+  </div>
+</div>
+<br/>
 <p>Call</p>
 <div>
+  <button onclick="getCallSession()">Get Call Session</button>
   <button onclick="makeCall()">Make Call</button>
   <button onclick="joinCall()">Join Call</button>
   <button onclick="leaveCall()">Leave call</button>
@@ -70,7 +79,7 @@
 
   const incomingCall = {sender: null}
   let callSession = null
-
+  
   function answer(accept) {
     if (accept) {
       updateLog(`You ${accept ? 'accept': 'reject'} call ${callSession} from ${incomingCall.sender}`)
@@ -88,6 +97,12 @@
     updateLog(`Connect to the server with id ${id}`)
     socket = io(`/?uid=${id}`);
     socket.on('__TEST__', () => updateLog(`connected`))
+    
+    socket.on('group:join', (groupId, newMember) => {
+      if (newMember !== id) {
+        updateLog(`${newMember} joined group ${groupId}`)
+      }
+    })
     
     socket.on('group:makeCall', ({sender, sessionId}) => {
       if (sender === id) return
@@ -110,9 +125,28 @@
     })
   }
 
+  function joinGroup() {
+    const groupId = val('groupId')
+    updateLog(`joining group ${groupId}`)
+    socket.emit('group:join', groupId, () => updateLog(`You joined group ${groupId}`))
+  }
+  
+  function getCallSession() {
+    const groupId = val('groupId')
+    socket.emit('group:getCallSession', groupId, sessionId => {
+      if (sessionId) {
+        updateLog(`Group ${groupId} in call with session ${sessionId}`)
+        callSession = sessionId
+      } else {
+        updateLog(`Group ${groupId} is not in call`)
+      }
+    })
+  }
+  
   function makeCall() {
-    socket.emit('group:makeCall', (sessionId) => {
-      updateLog(`new session created ${sessionId}`)
+    const groupId = val('groupId')
+    socket.emit('group:makeCall', groupId, sessionId => {
+      updateLog(`new call session created ${sessionId}`)
       callSession = sessionId
     })
   }

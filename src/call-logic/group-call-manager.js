@@ -1,4 +1,6 @@
 const {v4} = require('uuid')
+
+const callGroups = {}
 const callSessions = {}
 
 function rand() {
@@ -6,9 +8,14 @@ function rand() {
 }
 
 module.exports = {
-  makeCall(userId) {
+  groupCallSession(groupId) {
+    return callGroups[groupId]
+  },
+  makeCall(groupId, userId) {
     const sessionId = rand()
+    callGroups[groupId] = sessionId;
     callSessions[sessionId] = {
+      ofGroup: groupId,
       createdAt: new Date(),
       members: {
         [userId]: new Date()
@@ -40,8 +47,11 @@ module.exports = {
     if (!callSession.members[userId]) return 0
     delete callSession.members[userId]
     const remainMembers = Object.keys(callSession.members).length
-    if (remainMembers === 0)
+    if (remainMembers === 0) {
+      const groupId = callSession.ofGroup
       delete callSessions[sessionId]
+      delete callGroups[groupId]
+    }
     return remainMembers
   }
 }

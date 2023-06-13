@@ -79,11 +79,20 @@ function createSocketServer(httpServer) {
     })
 
     // 1-n
-    socket.on('group:makeCall', (cb) => {
-      const sessionId = groupCallMgr.makeCall(sender)
+    socket.on('group:join', (groupId, cb) => {
+      console.log(sender, 'join group', groupId)
+      socket.join(groupId)
+      cb(true)
+      io.to(groupId).emit('group:join', groupId, sender)
+    })
+    socket.on('group:getCallSession', (groupId, cb) => {
+      cb(groupCallMgr.groupCallSession(groupId))
+    })
+    socket.on('group:makeCall', (groupId, cb) => {
+      const sessionId = groupCallMgr.makeCall(groupId, sender)
       cb(sessionId)
       socket.join(sessionId)
-      io.to('discord').emit('group:makeCall', {sender, sessionId})
+      io.to(groupId).emit('group:makeCall', {sender, sessionId})
     })
     socket.on('group:joinCall', (sessionId, cb) => {
       const shouldJoinVoip = groupCallMgr.joinCall(sender, sessionId)
